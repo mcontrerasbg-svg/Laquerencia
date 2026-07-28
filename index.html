@@ -331,10 +331,65 @@
         window.confirmarGastoCaja = function() { let motivo = document.getElementById('input-gasto-motivo').value.trim(); let monto = parseFloat(document.getElementById('input-gasto-monto').value); if(!motivo || isNaN(monto) || monto <= 0) { window.mostrarMensaje('Datos inválidos.', 'error'); return; } gastosCaja.push({ motivo, monto, fecha: new Date().toISOString() }); window.cerrarModalGastoCaja(); document.getElementById('input-gasto-motivo').value = ''; document.getElementById('input-gasto-monto').value = ''; window.guardarEstadoGlobal(); window.actualizarUICaja(); window.mostrarMensaje('Gasto registrado.', 'success'); };
 
         // --- COBROS ---
-        window.iniciarCobroMesa = function(idMesa, total) { if(estadoCaja === 'cerrada') { window.mostrarMensaje('Abre la caja primero.', 'error'); return; } mesaSeleccionadaParaCobro = idMesa; totalCobroActual = total; document.getElementById('modal-ticket').classList.remove('hidden'); };
-        window.seleccionarMedioPago = function(metodo) { medioPagoSeleccionado = metodo; ['efectivo', 'transferencia', 'tarjeta'].forEach(m => { const el = document.getElementById('btn-pago-'+m); if(el) el.className = (metodo === m) ? "flex-1 py-2 rounded-xl font-bold border-2 border-orange-500 bg-orange-50 text-orange-700 text-xs" : "flex-1 py-2 rounded-xl font-bold border-2 border-gray-200 bg-gray-50 text-gray-500 text-xs"; }); };
+        window.iniciarCobroMesa = function(idMesa, total) { 
+            if(estadoCaja === 'cerrada') { window.mostrarMensaje('Abre la caja primero.', 'error'); return; } 
+            mesaSeleccionadaParaCobro = idMesa; 
+            totalCobroActual = total; 
+            
+            // Renderizar datos en el ticket
+            document.getElementById('ticket-mesa-num').innerText = idMesa;
+            
+            const opcionesFecha = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' };
+            document.getElementById('ticket-fecha').innerText = new Date().toLocaleDateString('es-CL', opcionesFecha);
+            
+            const tbody = document.getElementById('ticket-items-lista');
+            tbody.innerHTML = mesas[idMesa].pedidos.map(p => `
+                <tr>
+                    <td class="py-1 align-top">${p.cantidad}</td>
+                    <td class="py-1 pr-2 align-top">${p.nombre}</td>
+                    <td class="text-right py-1 align-top whitespace-nowrap">${formatoDinero(p.precio * p.cantidad)}</td>
+                </tr>
+            `).join('');
+            
+            document.getElementById('ticket-total-monto').innerText = formatoDinero(total);
+            
+            // Reiniciar pago a efectivo por defecto
+            seleccionarMedioPago('efectivo');
+
+            document.getElementById('modal-ticket').classList.remove('hidden'); 
+            refrescarIconos();
+        };
+
+        window.imprimirTicket = function() {
+            window.print();
+        };
+
+        window.seleccionarMedioPago = function(metodo) { 
+            medioPagoSeleccionado = metodo; 
+            ['efectivo', 'transferencia', 'tarjeta'].forEach(m => { 
+                const el = document.getElementById('btn-pago-'+m); 
+                if(el) el.className = (metodo === m) ? "flex-1 py-2 rounded-xl font-bold border-2 border-orange-500 bg-orange-50 text-orange-700 text-xs" : "flex-1 py-2 rounded-xl font-bold border-2 border-gray-200 bg-gray-50 text-gray-500 text-xs"; 
+            }); 
+        };
+        
         window.cerrarModalTicket = function() { document.getElementById('modal-ticket').classList.add('hidden'); };
-        window.finalizarCobro = function() { const idMesa = mesaSeleccionadaParaCobro; const total = totalCobroActual; let platosNoContados = 0; mesas[idMesa].pedidos.forEach(p => { if (p.icono === 'utensils' || p.icono === 'soup') platosNoContados += p.cantidad; }); platosSacadosCocina += platosNoContados; ventasDiarias[medioPagoSeleccionado] += total; historialVentas.push({ id: Date.now().toString(), mesa: idMesa, total, medioPago: medioPagoSeleccionado, pedidos: JSON.parse(JSON.stringify(mesas[idMesa].pedidos)), fecha: new Date().toISOString() }); mesas[idMesa].estado = 'libre'; mesas[idMesa].pedidos = []; window.cerrarModalTicket(); window.guardarEstadoGlobal(); window.renderizarTodasLasMesas(); window.actualizarUICaja(); window.mostrarMensaje('Cobro registrado exitosamente.', 'success'); };
+        
+        window.finalizarCobro = function() { 
+            const idMesa = mesaSeleccionadaParaCobro; 
+            const total = totalCobroActual; 
+            let platosNoContados = 0; 
+            mesas[idMesa].pedidos.forEach(p => { if (p.icono === 'utensils' || p.icono === 'soup') platosNoContados += p.cantidad; }); 
+            platosSacadosCocina += platosNoContados; 
+            ventasDiarias[medioPagoSeleccionado] += total; 
+            historialVentas.push({ id: Date.now().toString(), mesa: idMesa, total, medioPago: medioPagoSeleccionado, pedidos: JSON.parse(JSON.stringify(mesas[idMesa].pedidos)), fecha: new Date().toISOString() }); 
+            mesas[idMesa].estado = 'libre'; 
+            mesas[idMesa].pedidos = []; 
+            window.cerrarModalTicket(); 
+            window.guardarEstadoGlobal(); 
+            window.renderizarTodasLasMesas(); 
+            window.actualizarUICaja(); 
+            window.mostrarMensaje('Cobro registrado exitosamente.', 'success'); 
+        };
 
         // --- COCINA ---
         window.renderizarCocina = function() {
@@ -418,6 +473,30 @@
     </script>
     <style>
         .sidebar-closed { width: 0px !important; min-width: 0px !important; opacity: 0 !important; overflow: hidden !important; padding-left: 0 !important; padding-right: 0 !important; border: none !important; }
+        
+        /* ESTILOS PARA IMPRESIÓN DEL TICKET */
+        @media print {
+            body * {
+                visibility: hidden; /* Ocultar todo por defecto */
+            }
+            /* Solo mostrar el ticket y su contenido */
+            #ticket-imprimible, #ticket-imprimible * {
+                visibility: visible;
+            }
+            #ticket-imprimible {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                margin: 0;
+                padding: 0;
+                border: none;
+                box-shadow: none;
+            }
+            .print\:hidden {
+                display: none !important;
+            }
+        }
     </style>
 </head>
 <body class="bg-orange-50 font-sans text-gray-800">
@@ -469,15 +548,65 @@
         </div>
     </div>
 
-    <div id="modal-ticket" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl flex flex-col gap-4">
-            <h3 class="text-xl font-black text-center">Seleccionar Pago</h3>
-            <div class="flex gap-2">
-                <button onclick="seleccionarMedioPago('efectivo')" id="btn-pago-efectivo" class="flex-1 py-2 rounded-xl font-bold border-2 border-orange-500 bg-orange-50 text-orange-700 text-xs">Efectivo</button>
-                <button onclick="seleccionarMedioPago('transferencia')" id="btn-pago-transferencia" class="flex-1 py-2 rounded-xl font-bold border-2 border-gray-200 bg-gray-50 text-gray-500 text-xs">Transf.</button>
-                <button onclick="seleccionarMedioPago('tarjeta')" id="btn-pago-tarjeta" class="flex-1 py-2 rounded-xl font-bold border-2 border-gray-200 bg-gray-50 text-gray-500 text-xs">Tarjeta</button>
+    <!-- NUEVO MODAL DE TICKET / COBRO -->
+    <div id="modal-ticket" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 print:bg-white print:p-0">
+        <div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl flex flex-col gap-4">
+            
+            <div class="flex justify-between items-start print:hidden">
+                <div>
+                    <h3 class="text-xl font-black text-slate-800">Resumen de Venta</h3>
+                    <p class="text-sm text-slate-500">Vista previa del ticket</p>
+                </div>
+                <button onclick="cerrarModalTicket()" class="p-2 bg-slate-100 text-slate-500 rounded-full hover:bg-slate-200 transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
-            <div class="flex gap-2 mt-4"><button onclick="cerrarModalTicket()" class="flex-1 bg-gray-200 py-3 rounded-xl font-bold">Cancelar</button><button onclick="finalizarCobro()" class="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold">Cobrar y Cerrar</button></div>
+            
+            <!-- CONTENEDOR DEL TICKET IMPRIMIBLE -->
+            <div id="ticket-imprimible" class="bg-white border border-gray-200 p-6 shadow-sm mx-auto w-full font-mono text-sm text-black">
+                <div class="text-center mb-4">
+                    <h2 class="text-lg font-bold tracking-widest uppercase">La Querencia</h2>
+                    <p class="text-xs uppercase tracking-widest">Sabores Caseros</p>
+                    <p class="mt-2 font-bold">Ticket Mesa: <span id="ticket-mesa-num"></span></p>
+                    <p class="text-xs mt-1" id="ticket-fecha"></p>
+                </div>
+                <div class="border-t border-dashed border-gray-400 my-3"></div>
+                <table class="w-full text-left text-xs mb-2">
+                    <thead>
+                        <tr>
+                            <th class="w-10 py-1">Cant</th>
+                            <th class="py-1">Detalle</th>
+                            <th class="text-right py-1">Monto</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ticket-items-lista">
+                        <!-- Items dinámicos -->
+                    </tbody>
+                </table>
+                <div class="border-t border-dashed border-gray-400 my-3"></div>
+                <div class="flex justify-between font-black text-sm">
+                    <span>TOTAL:</span>
+                    <span id="ticket-total-monto"></span>
+                </div>
+            </div>
+
+            <!-- SELECCIÓN DE MEDIO DE PAGO (NO SE IMPRIME) -->
+            <div class="flex flex-col gap-2 mt-2 print:hidden">
+                <p class="text-sm font-bold text-center text-slate-600">Método de Pago</p>
+                <div class="flex gap-2">
+                    <button onclick="seleccionarMedioPago('efectivo')" id="btn-pago-efectivo" class="flex-1 py-2.5 rounded-xl font-bold border-2 border-orange-500 bg-orange-50 text-orange-700 text-xs transition-colors">Efectivo</button>
+                    <button onclick="seleccionarMedioPago('transferencia')" id="btn-pago-transferencia" class="flex-1 py-2.5 rounded-xl font-bold border-2 border-gray-200 bg-gray-50 text-gray-500 text-xs transition-colors">Transf.</button>
+                    <button onclick="seleccionarMedioPago('tarjeta')" id="btn-pago-tarjeta" class="flex-1 py-2.5 rounded-xl font-bold border-2 border-gray-200 bg-gray-50 text-gray-500 text-xs transition-colors">Tarjeta</button>
+                </div>
+            </div>
+
+            <!-- BOTONES DE ACCIÓN (NO SE IMPRIMEN) -->
+            <div class="flex gap-3 mt-2 print:hidden">
+                <button onclick="imprimirTicket()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-transform active:scale-95 shadow-md">
+                    <i data-lucide="printer" class="w-5 h-5"></i> Imprimir
+                </button>
+                <button onclick="finalizarCobro()" class="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition-transform active:scale-95 shadow-md">
+                    <i data-lucide="check-circle" class="w-5 h-5"></i> Finalizar
+                </button>
+            </div>
         </div>
     </div>
 
