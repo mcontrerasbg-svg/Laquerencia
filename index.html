@@ -321,14 +321,59 @@
                 if(btnCaja) { btnCaja.innerHTML = '<i data-lucide="lock" class="w-4 h-4"></i><span>Cerrar Caja</span>'; btnCaja.className = "flex-1 bg-red-50 text-red-600 border border-red-200 px-3 py-2.5 rounded-xl hover:bg-red-100 font-bold text-sm flex items-center justify-center gap-2 shadow-sm"; }
                 if(btnGasto) btnGasto.classList.remove('opacity-50', 'cursor-not-allowed');
             }
-            refrescarIconos();
+            refrescarIcon        window.abrirModalCerrarCaja = function() { 
+            const totalGastos = gastosCaja.reduce((acc, gasto) => acc + gasto.monto, 0);
+            const totalVentas = ventasDiarias.efectivo + ventasDiarias.transferencia + ventasDiarias.tarjeta;
+            const totalBanco = ventasDiarias.transferencia + ventasDiarias.tarjeta;
+            const efectivoFisico = aperturaCaja + ventasDiarias.efectivo - totalGastos;
+
+            document.getElementById('cierre-apertura').innerText = formatoDinero(aperturaCaja); 
+            document.getElementById('cierre-ventas-efectivo').innerText = formatoDinero(ventasDiarias.efectivo);
+            document.getElementById('cierre-ventas-transf').innerText = formatoDinero(ventasDiarias.transferencia);
+            document.getElementById('cierre-ventas-tarjeta').innerText = formatoDinero(ventasDiarias.tarjeta);
+            document.getElementById('cierre-total-ventas').innerText = formatoDinero(totalVentas);
+            document.getElementById('cierre-total-gastos').innerText = '- ' + formatoDinero(totalGastos);
+            document.getElementById('cierre-banco').innerText = formatoDinero(totalBanco);
+            document.getElementById('cierre-efectivo-fisico').innerText = formatoDinero(efectivoFisico);
+            
+            document.getElementById('modal-cerrar-caja').classList.remove('hidden'); 
         };
-        window.abrirModalCerrarCaja = function() { document.getElementById('resumen-apertura').innerText = formatoDinero(aperturaCaja); document.getElementById('resumen-efectivo').innerText = '+ ' + formatoDinero(ventasDiarias.efectivo); let totalGastos = gastosCaja.reduce((acc, gasto) => acc + gasto.monto, 0); document.getElementById('resumen-gastos').innerText = '- ' + formatoDinero(totalGastos); document.getElementById('resumen-total-esperado').innerText = formatoDinero(aperturaCaja + ventasDiarias.efectivo - totalGastos); document.getElementById('modal-cerrar-caja').classList.remove('hidden'); };
         window.cerrarModalCerrarCaja = function() { document.getElementById('modal-cerrar-caja').classList.add('hidden'); };
         window.confirmarCerrarCaja = function() { estadoCaja = 'cerrada'; window.cerrarModalCerrarCaja(); window.guardarEstadoGlobal(); window.actualizarUICaja(); window.mostrarMensaje('Caja cerrada.', 'info'); };
-        window.agregarGastoCaja = function() { if(estadoCaja === 'cerrada') { window.mostrarMensaje('Abre la caja primero.', 'error'); return; } document.getElementById('modal-gasto-caja').classList.remove('hidden'); };
+        window.agregarGastoCaja = function() { 
+            if(estadoCaja === 'cerrada') { window.mostrarMensaje('Abre la caja primero.', 'error'); return; } 
+            window.renderizarListaGastos();
+            document.getElementById('modal-gasto-caja').classList.remove('hidden'); 
+        };
+        window.renderizarListaGastos = function() {
+            const contenedor = document.getElementById('lista-gastos-hoy');
+            if(!contenedor) return;
+            let total = 0;
+            if(gastosCaja.length === 0) {
+                contenedor.innerHTML = '<div class="text-center text-gray-400 py-6 text-sm">No hay gastos registrados hoy.</div>';
+            } else {
+                contenedor.innerHTML = [...gastosCaja].reverse().map(g => {
+                    total += g.monto;
+                    const f = new Date(g.fecha);
+                    const hora = f.toLocaleTimeString('es-CL', {hour: '2-digit', minute:'2-digit'});
+                    return `<div class="flex justify-between items-center p-2 border-b border-gray-100 last:border-0 bg-white mb-1 rounded shadow-sm text-sm"><div class="flex flex-col"><span class="font-bold text-gray-700">${g.motivo}</span><span class="text-[10px] text-gray-400">${hora}</span></div><span class="font-black text-red-600">${formatoDinero(g.monto)}</span></div>`;
+                }).join('');
+            }
+            document.getElementById('total-gastos-hoy').innerText = formatoDinero(total);
+        };
         window.cerrarModalGastoCaja = function() { document.getElementById('modal-gasto-caja').classList.add('hidden'); };
-        window.confirmarGastoCaja = function() { let motivo = document.getElementById('input-gasto-motivo').value.trim(); let monto = parseFloat(document.getElementById('input-gasto-monto').value); if(!motivo || isNaN(monto) || monto <= 0) { window.mostrarMensaje('Datos inválidos.', 'error'); return; } gastosCaja.push({ motivo, monto, fecha: new Date().toISOString() }); window.cerrarModalGastoCaja(); document.getElementById('input-gasto-motivo').value = ''; document.getElementById('input-gasto-monto').value = ''; window.guardarEstadoGlobal(); window.actualizarUICaja(); window.mostrarMensaje('Gasto registrado.', 'success'); };
+        window.confirmarGastoCaja = function() { 
+            let motivo = document.getElementById('input-gasto-motivo').value.trim(); 
+            let monto = parseFloat(document.getElementById('input-gasto-monto').value); 
+            if(!motivo || isNaN(monto) || monto <= 0) { window.mostrarMensaje('Datos inválidos.', 'error'); return; } 
+            gastosCaja.push({ motivo, monto, fecha: new Date().toISOString() }); 
+            document.getElementById('input-gasto-motivo').value = ''; 
+            document.getElementById('input-gasto-monto').value = ''; 
+            window.guardarEstadoGlobal(); 
+            window.actualizarUICaja(); 
+            window.renderizarListaGastos();
+            window.mostrarMensaje('Gasto registrado.', 'success'); 
+        };.', 'success'); };
 
         // --- COBROS ---
         window.iniciarCobroMesa = function(idMesa, total) { 
@@ -708,11 +753,84 @@
     </div>
 
     <div id="modal-gasto-caja" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl">
-            <h3 class="text-lg font-black mb-4">Registrar Gasto</h3>
-            <input type="text" id="input-gasto-motivo" placeholder="Motivo" class="w-full px-4 py-3 border rounded-xl mb-3">
-            <input type="number" id="input-gasto-monto" placeholder="Monto ($)" class="w-full px-4 py-3 border rounded-xl mb-4 font-black text-red-600">
-            <div class="flex gap-2"><button onclick="cerrarModalGastoCaja()" class="flex-1 bg-gray-200 py-3 rounded-xl font-bold">Cancelar</button><button onclick="confirmarGastoCaja()" class="flex-1 bg-gray-800 text-white py-3 rounded-xl font-bold">Guardar</button></div>
+        <div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center mb-4 shrink-0 border-b pb-3">
+                <h3 class="text-xl font-black text-gray-800">Gastos de Caja</h3>
+                <button onclick="cerrarModalGastoCaja()" class="p-2 bg-gray-100 text-gray-500 rounded-full hover:bg-gray-200"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            
+            <div class="bg-red-50 p-4 rounded-xl border border-red-100 mb-4 shrink-0">
+                <h4 class="font-bold text-red-800 mb-3 text-sm">Registrar Nuevo Gasto</h4>
+                <div class="flex flex-col gap-2 mb-2">
+                    <input type="text" id="input-gasto-motivo" placeholder="Ej: Lechuga y Tomates" class="w-full px-3 py-2 border rounded-lg text-sm font-medium">
+                    <div class="flex gap-2">
+                        <input type="number" id="input-gasto-monto" placeholder="Monto ($)" class="flex-1 px-3 py-2 border rounded-lg text-sm font-black text-red-600">
+                        <button onclick="confirmarGastoCaja()" class="bg-red-600 text-white px-4 py-2 rounded-lg font-bold shadow-sm text-sm hover:bg-red-700 whitespace-nowrap">Añadir Gasto</button>
+                    </div>
+                </div>
+            </div>
+
+            <h4 class="font-bold text-gray-600 text-xs uppercase tracking-wider mb-2 shrink-0">Historial de Gastos del Turno</h4>
+            <div class="overflow-y-auto flex-1 min-h-[150px] bg-gray-50 border border-gray-200 rounded-xl p-2" id="lista-gastos-hoy">
+                <!-- Lista de gastos -->
+            </div>
+            <div class="mt-4 flex justify-between font-black text-gray-800 text-base shrink-0 bg-gray-100 p-3 rounded-xl border">
+                <span>TOTAL GASTOS:</span>
+                <span id="total-gastos-hoy" class="text-red-600">$0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL CERRAR CAJA -->
+    <div id="modal-cerrar-caja" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl flex flex-col max-h-[90vh]">
+            <h3 class="text-xl font-black text-gray-800 mb-4 border-b pb-3">Resumen Cierre de Caja</h3>
+            
+            <div class="overflow-y-auto flex-1 mb-4 pr-2 space-y-4 text-sm text-gray-700">
+                <div class="flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100">
+                    <span class="font-bold">Apertura Inicial:</span>
+                    <span id="cierre-apertura" class="font-black text-gray-800 text-lg"></span>
+                </div>
+                
+                <div>
+                    <p class="font-bold mb-2 uppercase text-xs text-gray-400 tracking-wider">Ventas del Día</p>
+                    <div class="space-y-1.5 pl-2">
+                        <div class="flex justify-between"><span>Efectivo:</span><span id="cierre-ventas-efectivo" class="font-bold text-green-600"></span></div>
+                        <div class="flex justify-between"><span>Transferencia:</span><span id="cierre-ventas-transf" class="font-bold text-blue-600"></span></div>
+                        <div class="flex justify-between"><span>Tarjeta:</span><span id="cierre-ventas-tarjeta" class="font-bold text-blue-600"></span></div>
+                        <div class="flex justify-between border-t border-dashed pt-1 mt-1 font-black">
+                            <span>TOTAL VENTAS:</span><span id="cierre-total-ventas"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <p class="font-bold mb-2 uppercase text-xs text-gray-400 tracking-wider">Gastos de Caja</p>
+                    <div class="flex justify-between bg-red-50 p-2 rounded-lg text-red-800 font-bold border border-red-100">
+                        <span>Total Gastos (Efectivo):</span><span id="cierre-total-gastos"></span>
+                    </div>
+                </div>
+
+                <div class="border-t border-black pb-2 pt-4">
+                    <p class="font-bold mb-2 uppercase text-xs text-gray-400 tracking-wider">Detalle del Dinero</p>
+                    <div class="bg-blue-50 p-3 rounded-xl border border-blue-100 mb-2">
+                        <div class="flex justify-between text-blue-900 font-bold text-sm">
+                            <span>Dinero en Banco (Transf + Tarjeta):</span><span id="cierre-banco"></span>
+                        </div>
+                    </div>
+                    <div class="bg-green-50 p-3 rounded-xl border border-green-200">
+                        <div class="flex justify-between text-green-900 font-black text-lg">
+                            <span>Efectivo en Caja Físico:</span><span id="cierre-efectivo-fisico"></span>
+                        </div>
+                        <p class="text-[10px] text-green-700 mt-1 leading-tight text-right">(Apertura + Ventas Efectivo - Gastos)</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex gap-3 pt-2 shrink-0 border-t">
+                <button onclick="cerrarModalCerrarCaja()" class="flex-1 bg-gray-200 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-300 transition-colors">Cancelar</button>
+                <button onclick="confirmarCerrarCaja()" class="flex-1 bg-red-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-red-700 transition-colors">Confirmar Cierre</button>
+            </div>
         </div>
     </div>
 
