@@ -353,6 +353,12 @@
             
             document.getElementById('ticket-total-monto').innerText = formatoDinero(total);
             
+            // Mostrar sección de pagos y botón finalizar
+            document.getElementById('seccion-pago-ticket').classList.remove('hidden');
+            document.getElementById('btn-finalizar-cobro').classList.remove('hidden');
+            document.getElementById('seccion-pago-ticket').classList.add('flex');
+            document.getElementById('btn-finalizar-cobro').classList.add('flex');
+
             // Reiniciar pago a efectivo por defecto
             seleccionarMedioPago('efectivo');
 
@@ -368,8 +374,12 @@
             medioPagoSeleccionado = metodo; 
             ['efectivo', 'transferencia', 'tarjeta'].forEach(m => { 
                 const el = document.getElementById('btn-pago-'+m); 
-                if(el) el.className = (metodo === m) ? "flex-1 py-2 rounded-xl font-bold border-2 border-orange-500 bg-orange-50 text-orange-700 text-xs" : "flex-1 py-2 rounded-xl font-bold border-2 border-gray-200 bg-gray-50 text-gray-500 text-xs"; 
+                if(el) el.className = (metodo === m) ? "flex-1 py-2.5 rounded-xl font-bold border-2 border-orange-500 bg-orange-50 text-orange-700 text-xs transition-colors" : "flex-1 py-2.5 rounded-xl font-bold border-2 border-gray-200 bg-gray-50 text-gray-500 text-xs transition-colors"; 
             }); 
+            
+            const nombresPago = { 'efectivo': 'Efectivo', 'transferencia': 'Transferencia', 'tarjeta': 'Tarjeta' };
+            const labelPago = document.getElementById('ticket-medio-pago');
+            if(labelPago) labelPago.innerText = nombresPago[metodo] || metodo;
         };
         
         window.cerrarModalTicket = function() { document.getElementById('modal-ticket').classList.add('hidden'); };
@@ -427,7 +437,57 @@
         };
 
         // --- ADMIN USUARIOS ---
-        window.abrirHistorialVentas = function() { const contenedor = document.getElementById('lista-historial-ventas'); if(!contenedor) return; contenedor.innerHTML = historialVentas.length === 0 ? '<p class="text-center text-gray-500 py-8">Sin ventas hoy.</p>' : [...historialVentas].reverse().map(v => `<div class="bg-white p-4 rounded-xl border mb-3 flex justify-between items-center shadow-sm"><div><p class="font-bold">Mesa ${v.mesa}</p><p class="text-sm font-black text-blue-600">${formatoDinero(v.total)} (${v.medioPago})</p></div></div>`).join(''); document.getElementById('modal-historial-ventas').classList.remove('hidden'); };
+        window.abrirHistorialVentas = function() { 
+            const contenedor = document.getElementById('lista-historial-ventas'); 
+            if(!contenedor) return; 
+            contenedor.innerHTML = historialVentas.length === 0 ? '<p class="text-center text-gray-500 py-8">Sin ventas hoy.</p>' : [...historialVentas].reverse().map(v => `
+                <div class="bg-white p-4 rounded-xl border mb-3 flex justify-between items-center shadow-sm">
+                    <div>
+                        <p class="font-bold">Mesa ${v.mesa}</p>
+                        <p class="text-sm font-black text-blue-600">${formatoDinero(v.total)} (${v.medioPago})</p>
+                    </div>
+                    <button onclick="reimprimirVenta('${v.id}')" class="bg-blue-100 text-blue-600 p-2 rounded-lg hover:bg-blue-200 transition-colors" title="Reimprimir Ticket">
+                        <i data-lucide="printer" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            `).join(''); 
+            document.getElementById('modal-historial-ventas').classList.remove('hidden'); 
+            refrescarIconos();
+        };
+        
+        window.reimprimirVenta = function(idVenta) {
+            const venta = historialVentas.find(v => v.id === idVenta);
+            if(!venta) return;
+            
+            document.getElementById('ticket-mesa-num').innerText = venta.mesa;
+            
+            const fechaVenta = new Date(venta.fecha);
+            const opcionesFecha = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' };
+            document.getElementById('ticket-fecha').innerText = fechaVenta.toLocaleDateString('es-CL', opcionesFecha);
+            
+            const tbody = document.getElementById('ticket-items-lista');
+            tbody.innerHTML = venta.pedidos.map(p => `
+                <tr>
+                    <td class="py-1 align-top">${p.cantidad}</td>
+                    <td class="py-1 pr-2 align-top">${p.nombre}</td>
+                    <td class="text-right py-1 align-top whitespace-nowrap">${formatoDinero(p.precio * p.cantidad)}</td>
+                </tr>
+            `).join('');
+            
+            document.getElementById('ticket-total-monto').innerText = formatoDinero(venta.total);
+            
+            const nombresPago = { 'efectivo': 'Efectivo', 'transferencia': 'Transferencia', 'tarjeta': 'Tarjeta' };
+            document.getElementById('ticket-medio-pago').innerText = nombresPago[venta.medioPago] || venta.medioPago;
+
+            // Ocultar sección de pagos y botón finalizar
+            document.getElementById('seccion-pago-ticket').classList.remove('flex');
+            document.getElementById('btn-finalizar-cobro').classList.remove('flex');
+            document.getElementById('seccion-pago-ticket').classList.add('hidden');
+            document.getElementById('btn-finalizar-cobro').classList.add('hidden');
+            
+            document.getElementById('modal-ticket').classList.remove('hidden'); 
+        };
+        
         window.cerrarHistorialVentas = function() { document.getElementById('modal-historial-ventas').classList.add('hidden'); };
         window.renderizarUsuariosAdmin = function() { const contenedor = document.getElementById('lista-usuarios-admin'); if(!contenedor) return; contenedor.innerHTML = listaUsuarios.map((u, index) => `<div class="flex justify-between items-center bg-white p-4 rounded-xl border shadow-sm"><div><p class="font-bold text-gray-800">${u.email}</p><p class="text-xs text-orange-600 font-bold uppercase mt-0.5">Rol: ${u.rol}</p></div><div class="flex items-center gap-3"><span class="text-xs text-gray-400 font-mono hidden sm:block">Clave: ${u.pass}</span>${u.email !== 'admin@laquerencia.cl' ? `<button onclick="eliminarUsuario(${index})" class="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` : '<span class="text-[10px] text-gray-300 italic">Principal</span>'}</div></div>`).join(''); refrescarIconos(); };
         window.registrarNuevoUsuario = function(e) { e.preventDefault(); const email = document.getElementById('nuevo-email').value.trim().toLowerCase(); const pass = document.getElementById('nuevo-pass').value.trim(); const rol = document.getElementById('nuevo-rol').value; if(!email || !pass) { window.mostrarMensaje('Completa todos los campos.', 'error'); return; } if(listaUsuarios.some(u => u.email === email)) { window.mostrarMensaje('Este correo ya está registrado.', 'error'); return; } listaUsuarios.push({ email, pass, rol }); window.guardarEstadoGlobal(); window.renderizarUsuariosAdmin(); document.getElementById('nuevo-email').value = ''; document.getElementById('nuevo-pass').value = ''; window.mostrarMensaje('¡Nuevo acceso creado!', 'success'); };
@@ -582,14 +642,22 @@
                     </tbody>
                 </table>
                 <div class="border-t border-dashed border-gray-400 my-3"></div>
-                <div class="flex justify-between font-black text-sm">
+                <div class="flex justify-between font-black text-sm mb-2">
                     <span>TOTAL:</span>
                     <span id="ticket-total-monto"></span>
+                </div>
+                <div class="text-center mt-4">
+                    <p class="text-xs uppercase font-bold text-gray-700">Medio de Pago: <span id="ticket-medio-pago"></span></p>
+                </div>
+                <div class="border-t border-dashed border-gray-400 my-3"></div>
+                <div class="text-center mt-3">
+                    <p class="font-bold text-sm">¡Gracias! Vuelva pronto.</p>
+                    <p class="text-xs italic text-gray-600 mt-1">"Cocinar con amor te alimenta el alma"</p>
                 </div>
             </div>
 
             <!-- SELECCIÓN DE MEDIO DE PAGO (NO SE IMPRIME) -->
-            <div class="flex flex-col gap-2 mt-2 print:hidden">
+            <div id="seccion-pago-ticket" class="flex flex-col gap-2 mt-2 print:hidden">
                 <p class="text-sm font-bold text-center text-slate-600">Método de Pago</p>
                 <div class="flex gap-2">
                     <button onclick="seleccionarMedioPago('efectivo')" id="btn-pago-efectivo" class="flex-1 py-2.5 rounded-xl font-bold border-2 border-orange-500 bg-orange-50 text-orange-700 text-xs transition-colors">Efectivo</button>
@@ -603,7 +671,7 @@
                 <button onclick="imprimirTicket()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-transform active:scale-95 shadow-md">
                     <i data-lucide="printer" class="w-5 h-5"></i> Imprimir
                 </button>
-                <button onclick="finalizarCobro()" class="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition-transform active:scale-95 shadow-md">
+                <button id="btn-finalizar-cobro" onclick="finalizarCobro()" class="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition-transform active:scale-95 shadow-md">
                     <i data-lucide="check-circle" class="w-5 h-5"></i> Finalizar
                 </button>
             </div>
