@@ -492,8 +492,116 @@
         window.renderizarUsuariosAdmin = function() { const contenedor = document.getElementById('lista-usuarios-admin'); if(!contenedor) return; contenedor.innerHTML = listaUsuarios.map((u, index) => `<div class="flex justify-between items-center bg-white p-4 rounded-xl border shadow-sm"><div><p class="font-bold text-gray-800">${u.email}</p><p class="text-xs text-orange-600 font-bold uppercase mt-0.5">Rol: ${u.rol}</p></div><div class="flex items-center gap-3"><span class="text-xs text-gray-400 font-mono hidden sm:block">Clave: ${u.pass}</span>${u.email !== 'admin@laquerencia.cl' ? `<button onclick="eliminarUsuario(${index})" class="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` : '<span class="text-[10px] text-gray-300 italic">Principal</span>'}</div></div>`).join(''); refrescarIconos(); };
         window.registrarNuevoUsuario = function(e) { e.preventDefault(); const email = document.getElementById('nuevo-email').value.trim().toLowerCase(); const pass = document.getElementById('nuevo-pass').value.trim(); const rol = document.getElementById('nuevo-rol').value; if(!email || !pass) { window.mostrarMensaje('Completa todos los campos.', 'error'); return; } if(listaUsuarios.some(u => u.email === email)) { window.mostrarMensaje('Este correo ya está registrado.', 'error'); return; } listaUsuarios.push({ email, pass, rol }); window.guardarEstadoGlobal(); window.renderizarUsuariosAdmin(); document.getElementById('nuevo-email').value = ''; document.getElementById('nuevo-pass').value = ''; window.mostrarMensaje('¡Nuevo acceso creado!', 'success'); };
         window.eliminarUsuario = function(index) { if(listaUsuarios[index].email === 'admin@laquerencia.cl') return; listaUsuarios.splice(index, 1); window.guardarEstadoGlobal(); window.renderizarUsuariosAdmin(); window.mostrarMensaje('Acceso eliminado.', 'info'); };
-        window.abrirConfigMenu = function() { document.getElementById('modal-config-menu').classList.remove('hidden'); };
-        window.cerrarConfigMenu = function() { document.getElementById('modal-config-menu').classList.add('hidden'); };
+        window.abrirConfigMenu = function() { 
+            window.renderizarGestionMenu();
+            document.getElementById('modal-config-menu').classList.remove('hidden'); 
+        };
+        window.cerrarConfigMenu = function() { 
+            window.limpiarFormularioPlato();
+            document.getElementById('modal-config-menu').classList.add('hidden'); 
+        };
+
+        window.renderizarGestionMenu = function() {
+            const tbody = document.getElementById('lista-gestion-menu');
+            if(!tbody) return;
+            tbody.innerHTML = menuPlatos.map(p => `
+                <tr class="${p.activo ? '' : 'opacity-50 bg-gray-50'}">
+                    <td class="py-3 px-3">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="${p.icono}" class="w-4 h-4 text-gray-400"></i>
+                            <span class="font-bold text-gray-800 ${p.activo ? '' : 'line-through'}">${p.nombre}</span>
+                        </div>
+                    </td>
+                    <td class="py-3 px-3 text-right font-black text-orange-600">${formatoDinero(p.precio)}</td>
+                    <td class="py-3 px-3 text-center">
+                        <div class="flex items-center justify-center gap-2">
+                            <button onclick="editarPlato('${p.id}')" class="p-1.5 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors" title="Editar"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+                            <button onclick="toggleActivoPlato('${p.id}')" class="p-1.5 ${p.activo ? 'bg-amber-50 text-amber-600 hover:bg-amber-100' : 'bg-green-50 text-green-600 hover:bg-green-100'} rounded transition-colors" title="${p.activo ? 'Desactivar' : 'Activar'}"><i data-lucide="${p.activo ? 'eye-off' : 'eye'}" class="w-4 h-4"></i></button>
+                            <button onclick="eliminarPlato('${p.id}')" class="p-1.5 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors" title="Eliminar"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+            refrescarIconos();
+        };
+
+        window.limpiarFormularioPlato = function() {
+            document.getElementById('input-plato-id').value = '';
+            document.getElementById('input-plato-nombre').value = '';
+            document.getElementById('input-plato-precio').value = '';
+            document.getElementById('input-plato-icono').value = 'utensils';
+            document.getElementById('titulo-form-plato').innerText = 'Añadir Nuevo Producto';
+        };
+
+        window.editarPlato = function(id) {
+            const p = menuPlatos.find(x => x.id === id);
+            if(!p) return;
+            document.getElementById('input-plato-id').value = p.id;
+            document.getElementById('input-plato-nombre').value = p.nombre;
+            document.getElementById('input-plato-precio').value = p.precio;
+            document.getElementById('input-plato-icono').value = p.icono;
+            document.getElementById('titulo-form-plato').innerText = 'Editar: ' + p.nombre;
+        };
+
+        window.guardarPlato = function(e) {
+            e.preventDefault();
+            const id = document.getElementById('input-plato-id').value;
+            const nombre = document.getElementById('input-plato-nombre').value.trim();
+            const precio = parseInt(document.getElementById('input-plato-precio').value, 10);
+            const icono = document.getElementById('input-plato-icono').value;
+
+            if(!nombre || isNaN(precio) || precio < 0) {
+                window.mostrarMensaje('Datos inválidos', 'error');
+                return;
+            }
+
+            if(id) {
+                // Editar existente
+                const idx = menuPlatos.findIndex(x => x.id === id);
+                if(idx > -1) {
+                    menuPlatos[idx].nombre = nombre;
+                    menuPlatos[idx].precio = precio;
+                    menuPlatos[idx].icono = icono;
+                    window.mostrarMensaje('Producto actualizado', 'success');
+                }
+            } else {
+                // Crear nuevo
+                const nuevoId = 'p' + Date.now();
+                menuPlatos.push({
+                    id: nuevoId,
+                    nombre,
+                    precio,
+                    icono,
+                    activo: true
+                });
+                window.mostrarMensaje('Producto agregado', 'success');
+            }
+
+            window.guardarEstadoGlobal();
+            window.renderizarGestionMenu();
+            window.limpiarFormularioPlato();
+        };
+
+        window.toggleActivoPlato = function(id) {
+            const p = menuPlatos.find(x => x.id === id);
+            if(p) {
+                p.activo = !p.activo;
+                window.guardarEstadoGlobal();
+                window.renderizarGestionMenu();
+                window.mostrarMensaje(p.activo ? 'Producto activado' : 'Producto ocultado', 'info');
+            }
+        };
+
+        window.eliminarPlato = function(id) {
+            if(!confirm('¿Estás seguro de eliminar este producto del menú? Esto no afectará el historial pasado.')) return;
+            const idx = menuPlatos.findIndex(x => x.id === id);
+            if(idx > -1) {
+                menuPlatos.splice(idx, 1);
+                window.guardarEstadoGlobal();
+                window.renderizarGestionMenu();
+                window.mostrarMensaje('Producto eliminado', 'info');
+            }
+        };
 
         // --- INICIALIZACIÓN ---
         window.onload = () => {
@@ -689,6 +797,66 @@
         <div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl max-h-[80vh] overflow-y-auto">
             <div class="flex justify-between items-center mb-4"><h3 class="text-xl font-black">Ventas del Día</h3><button onclick="cerrarHistorialVentas()"><i data-lucide="x"></i></button></div>
             <div id="lista-historial-ventas"></div>
+        </div>
+    </div>
+
+    <!-- MODAL CONFIGURACIÓN MENÚ -->
+    <div id="modal-config-menu" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-2xl rounded-2xl p-6 shadow-2xl max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-black text-gray-800">Gestión de Menú</h3>
+                <button onclick="cerrarConfigMenu()" class="p-2 bg-gray-100 text-gray-500 rounded-full hover:bg-gray-200 transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            
+            <!-- Formulario de Nuevo / Editar Plato -->
+            <form onsubmit="window.guardarPlato(event); return false;" class="bg-orange-50 p-4 rounded-xl border border-orange-100 mb-4 flex flex-col gap-3 shrink-0">
+                <h4 id="titulo-form-plato" class="font-bold text-orange-800 text-sm">Añadir Nuevo Producto</h4>
+                <input type="hidden" id="input-plato-id" value="">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div class="sm:col-span-2">
+                        <label class="text-xs font-bold text-orange-600 uppercase mb-1 block">Nombre</label>
+                        <input type="text" id="input-plato-nombre" placeholder="Ej: Bebida 1.5L" required class="w-full px-3 py-2 border rounded-lg text-sm font-bold">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-orange-600 uppercase mb-1 block">Precio ($)</label>
+                        <input type="number" id="input-plato-precio" placeholder="0" required class="w-full px-3 py-2 border rounded-lg text-sm font-bold">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+                    <div>
+                        <label class="text-xs font-bold text-orange-600 uppercase mb-1 block">Ícono</label>
+                        <select id="input-plato-icono" class="w-full px-3 py-2 border rounded-lg text-sm font-bold">
+                            <option value="utensils">🍽️ Plato Fuerte</option>
+                            <option value="soup">🥣 Sopa/Cazuela</option>
+                            <option value="glass-water">🥤 Bebida/Jugo</option>
+                            <option value="cup-soda">🍹 Trago/Copa</option>
+                            <option value="coffee">☕ Café/Té</option>
+                            <option value="cake-slice">🍰 Postre</option>
+                            <option value="package">📦 Otro Producto</option>
+                        </select>
+                    </div>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="limpiarFormularioPlato()" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg font-bold hover:bg-gray-400 text-sm transition-colors">Cancelar</button>
+                        <button type="submit" class="flex-1 bg-orange-600 text-white py-2 rounded-lg font-bold hover:bg-orange-700 text-sm transition-colors shadow-sm">Guardar</button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Lista de Platos -->
+            <div class="overflow-y-auto flex-1 min-h-0">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-gray-50 sticky top-0 z-10">
+                        <tr>
+                            <th class="py-2 px-3 font-bold text-gray-500 uppercase text-xs">Producto</th>
+                            <th class="py-2 px-3 font-bold text-gray-500 uppercase text-xs text-right">Precio</th>
+                            <th class="py-2 px-3 font-bold text-gray-500 uppercase text-xs text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lista-gestion-menu" class="divide-y divide-gray-100">
+                        <!-- Platos generados -->
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
