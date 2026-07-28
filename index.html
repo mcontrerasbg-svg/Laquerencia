@@ -70,12 +70,15 @@
             { email: 'cocina@laquerencia.cl', pass: '1234', rol: 'cocina' }
         ]);
 
-        if (!Array.isArray(listaUsuarios)) {
+        if (!Array.isArray(listaUsuarios) || listaUsuarios.length === 0) {
             listaUsuarios = [
                 { email: 'admin@laquerencia.cl', pass: '1234', rol: 'administradora' },
                 { email: 'garzona@laquerencia.cl', pass: '1234', rol: 'garzona' },
                 { email: 'cocina@laquerencia.cl', pass: '1234', rol: 'cocina' }
             ];
+        }
+        if (!listaUsuarios.some(u => u.email === 'admin@laquerencia.cl')) {
+            listaUsuarios.push({ email: 'admin@laquerencia.cl', pass: '1234', rol: 'administradora' });
         }
         
         let mesaSeleccionadaParaMenu = null;
