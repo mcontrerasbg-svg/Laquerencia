@@ -320,7 +320,13 @@
         window.abrirMesa = function(idMesa) { if(estadoCaja === 'cerrada') { window.mostrarMensaje('Abre la caja primero.', 'error'); return; } mesas[idMesa].estado = 'ocupada'; mesas[idMesa].pedidos = []; window.guardarEstadoGlobal(); window.renderizarTodasLasMesas(); };
         window.abrirMenu = function(idMesa) { if(estadoCaja === 'cerrada') { window.mostrarMensaje('Abre la caja primero.', 'error'); return; } mesaSeleccionadaParaMenu = idMesa; document.getElementById('numero-mesa-modal').innerText = idMesa; document.getElementById('grid-platos').innerHTML = menuPlatos.filter(p => p.activo).map(plato => `<button onclick="agregarPlatoAlPedido('${plato.id}')" class="flex flex-col items-center justify-center p-4 bg-white border border-gray-200 rounded-xl hover:bg-orange-50"><i data-lucide="${plato.icono}" class="w-8 h-8 text-orange-500 mb-2"></i><span class="font-bold text-sm">${plato.nombre}</span><span class="text-orange-600 font-black text-xs">${formatoDinero(plato.precio)}</span></button>`).join(''); refrescarIconos(); document.getElementById('modal-menu').classList.remove('hidden'); };
         window.cerrarMenu = function() { document.getElementById('modal-menu').classList.add('hidden'); };
-        window.agregarPlatoAlPedido = function(idPlato) { const plato = menuPlatos.find(p => p.id === idPlato); const platoExistente = mesas[mesaSeleccionadaParaMenu].pedidos.find(p => p.id === idPlato && p.estadoCocina !== 'listo'); if (platoExistente) { platoExistente.cantidad += 1; } else { mesas[mesaSeleccionadaParaMenu].pedidos.push({ ...plato, cantidad: 1, estadoCocina: 'pendiente' }); } window.guardarEstadoGlobal(); window.renderizarTodasLasMesas(); window.mostrarMensaje(`+1 ${plato.nombre}`, 'success'); };
+        window.agregarPlatoAlPedido = function(idPlato) { 
+            const plato = menuPlatos.find(p => p.id === idPlato); 
+            mesas[mesaSeleccionadaParaMenu].pedidos.push({ ...plato, cantidad: 1, estadoCocina: 'pendiente' }); 
+            window.guardarEstadoGlobal(); 
+            window.renderizarTodasLasMesas(); 
+            window.mostrarMensaje(`+1 ${plato.nombre}`, 'success'); 
+        };
         window.cambiarCantidadPedido = function(idMesa, indexPlato, cambio) { if (!mesas[idMesa] || !mesas[idMesa].pedidos[indexPlato]) return; mesas[idMesa].pedidos[indexPlato].cantidad += cambio; if (mesas[idMesa].pedidos[indexPlato].cantidad <= 0) mesas[idMesa].pedidos.splice(indexPlato, 1); window.guardarEstadoGlobal(); window.renderizarTodasLasMesas(); };
         window.eliminarPedidoMesa = function(idMesa, indexPlato) { if (!mesas[idMesa] || !mesas[idMesa].pedidos[indexPlato]) return; mesas[idMesa].pedidos.splice(indexPlato, 1); window.guardarEstadoGlobal(); window.renderizarTodasLasMesas(); };
 
