@@ -350,7 +350,9 @@
                 if(btnCaja) { btnCaja.innerHTML = '<i data-lucide="lock" class="w-4 h-4"></i><span>Cerrar Caja</span>'; btnCaja.className = "flex-1 bg-red-50 text-red-600 border border-red-200 px-3 py-2.5 rounded-xl hover:bg-red-100 font-bold text-sm flex items-center justify-center gap-2 shadow-sm"; }
                 if(btnGasto) btnGasto.classList.remove('opacity-50', 'cursor-not-allowed');
             }
-            refrescarIcon        window.abrirModalCerrarCaja = function() { 
+            refrescarIconos();
+        };
+        window.abrirModalCerrarCaja = function() { 
             const totalGastos = gastosCaja.reduce((acc, gasto) => acc + gasto.monto, 0);
             const totalVentas = ventasDiarias.efectivo + ventasDiarias.transferencia + ventasDiarias.tarjeta;
             const totalBanco = ventasDiarias.transferencia + ventasDiarias.tarjeta;
